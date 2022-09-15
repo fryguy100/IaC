@@ -24,7 +24,7 @@ resource "aws_vpc" "vpc" {
   cidr_block = var.vpc_cidr
   tags = {
     Name        = var.vpc_name
-    Environment = "demo_environment"
+    Environment = var.environment
     Terraform   = "true"
     region      = data.aws_region.current.name
   }
@@ -185,7 +185,7 @@ resource "local_file" "private_key_pem" {
 }
 #associate it with instance
 resource "aws_key_pair" "generated" {
-  key_name   = "MyAWSKey"
+  key_name   = "MyAWSKey${var.environment}"
   public_key = tls_private_key.generated.public_key_openssh
   lifecycle {
     ignore_changes = [key_name]
