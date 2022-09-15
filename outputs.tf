@@ -1,3 +1,6 @@
+output "environment" {
+  value = var.environment
+}
 output "public_ip" {
   value = module.server.public_ip
 }

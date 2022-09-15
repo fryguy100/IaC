@@ -24,7 +24,7 @@ resource "aws_vpc" "vpc" {
   cidr_block = var.vpc_cidr
   tags = {
     Name        = var.vpc_name
-    Environment = "demo_environment"
+    Environment = var.environment
     Terraform   = "true"
     region      = data.aws_region.current.name
   }
@@ -185,7 +185,7 @@ resource "local_file" "private_key_pem" {
 }
 #associate it with instance
 resource "aws_key_pair" "generated" {
-  key_name   = "MyAWSKey"
+  key_name   = "MyAWSKey${var.environment}"
   public_key = tls_private_key.generated.public_key_openssh
   lifecycle {
     ignore_changes = [key_name]
@@ -261,38 +261,6 @@ resource "aws_security_group" "vpc-ping" {
   }
 }
 
-# Terraform Resource Block - To Build Web Server in Public Subnet
-resource "aws_instance" "demo_web_server" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = "t2.micro"
-  subnet_id                   = aws_subnet.public_subnets["public_subnet_1"].id
-  security_groups             = [aws_security_group.vpc-ping.id, aws_security_group.ingress-ssh.id, aws_security_group.vpc-web.id]
-  associate_public_ip_address = true
-  key_name                    = aws_key_pair.generated.key_name
-  connection {
-    user        = "ubuntu"
-    private_key = tls_private_key.generated.private_key_pem
-    host        = self.public_ip
-  }
-  # Leave the first part of the block unchanged and create our `local-exec` provisioner
-  provisioner "local-exec" {
-    command = "chmod 600 ${local_file.private_key_pem.filename}"
-  }
-  provisioner "remote-exec" {
-    inline = [
-      "sudo rm -rf /tmp",
-      "sudo git clone https://github.com/hashicorp/demo-terraform-101 /tmp",
-      "sudo sh /tmp/assets/setup-web.sh",
-    ]
-  }
-  tags = {
-    Name = "Web EC2 Server"
-  }
-  lifecycle {
-    ignore_changes = [security_groups]
-  }
-}
-
 # module that creates a keypair from the hashicorp registry
 module "keypair" {
   source  = "mitchellh/dynamic-keys/aws"
@@ -342,22 +310,3 @@ module "s3-bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "3.4.0"
 }
-
-module "vpc" {
-  source             = "terraform-aws-modules/vpc/aws"
-  version            = "3.14.4"
-  name               = "my-vpc-terraform"
-  cidr               = var.vpc_cidr
-  azs                = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  private_subnets    = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets     = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
-  enable_nat_gateway = true
-  enable_vpn_gateway = true
-  tags = {
-    Name        = "VPC from Module"
-    Terraform   = "true"
-    Environment = "development"
-  }
-}
-
-
