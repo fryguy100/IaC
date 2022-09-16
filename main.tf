@@ -19,6 +19,13 @@ locals {
   server_name = "ec2-${var.environment}-api-${var.variables_sub_az}"
 }
 
+locals {
+  service_name = "Automation"
+  app_team     = "Cloud Team"
+  createdby    = "terraform"
+}
+
+
 #Define the VPC
 resource "aws_vpc" "vpc" {
   cidr_block = var.vpc_cidr
@@ -290,7 +297,7 @@ module "server" {
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_1"].id
   vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.ingress-ssh.id, aws_security_group.vpc-web.id]
-  identity               = "module web 1"
+  identity               = "automation web app"
   key_name               = module.keypair.key_name
   private_key            = module.keypair.private_key_pem
 }
@@ -300,7 +307,7 @@ module "server_web_server" {
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_2"].id
   vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.ingress-ssh.id, aws_security_group.vpc-web.id]
-  identity               = "module web server"
+  identity               = "front-end web server"
   user                   = "ubuntu"
   key_name               = aws_key_pair.generated.key_name
   private_key            = tls_private_key.generated.private_key_pem

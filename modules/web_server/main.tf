@@ -1,3 +1,10 @@
+
+locals {
+  service_name = "Web-App"
+  app_team     = "Cloud Team"
+  createdby    = "terraform"
+}
+
 resource "aws_instance" "web" {
   ami                         = var.ami
   instance_type               = var.size
@@ -23,5 +30,8 @@ resource "aws_instance" "web" {
     "Identity"    = var.identity
     "Name"        = var.identity
     "Environment" = "Training"
+    "Service"     = local.service_name
+    "App Team"    = local.app_team
+    "CreatedBy"   = local.createdby
   }
 }

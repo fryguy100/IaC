@@ -1,4 +1,10 @@
 
+locals {
+  service_name = "Automation"
+  app_team     = "Cloud Team"
+  createdby    = "terraform"
+}
+
 resource "aws_instance" "web" {
   ami                    = var.ami
   instance_type          = "t2.micro"
@@ -9,5 +15,8 @@ resource "aws_instance" "web" {
     "Identity"    = var.identity
     "Name"        = var.identity
     "Environment" = "Training"
+    "Service"     = local.service_name
+    "App Team"    = local.app_team
+    "CreatedBy"   = local.createdby
   }
 }
