@@ -40,3 +40,9 @@ variable "environment" {
   description = "Infrastructure environment. eg. dev, prod, etc"
   default     = "test"
 }
+
+variable "phone_number" {
+  type      = string
+  sensitive = true
+  default   = "867-5309"
+}

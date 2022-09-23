@@ -28,3 +28,8 @@ output "asg_group_size" {
 output "s3_bucket_name" {
   value = module.s3-bucket.s3_bucket_bucket_domain_name
 }
+
+output "phone_number" {
+value = var.phone_number
+sensitive = true
+}

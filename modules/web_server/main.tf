@@ -3,7 +3,7 @@ locals {
   service_name = "Web-App"
   app_team     = "Cloud Team"
   createdby    = "terraform"
-  application = "front end web server"
+  application  = "front end web server"
 }
 locals {
   # Common tags to be assigned to all resources
