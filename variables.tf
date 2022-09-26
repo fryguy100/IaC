@@ -38,7 +38,7 @@ variable "variables_sub_auto_ip" {
 variable "environment" {
   type        = string
   description = "Infrastructure environment. eg. dev, prod, etc"
-  default     = "test"
+  default     = "dev"
 }
 
 variable "phone_number" {
