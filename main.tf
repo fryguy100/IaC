@@ -68,7 +68,7 @@ resource "aws_subnet" "list_subnet" {
   cidr_block        = each.value
   availability_zone = var.us-east-1-azs[0]
   tags = {
-    Name = each.key + "subnet"
+    Name = "${each.key} subnet"
   }
 }
 
