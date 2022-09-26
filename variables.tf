@@ -38,7 +38,7 @@ variable "variables_sub_auto_ip" {
 variable "environment" {
   type        = string
   description = "Infrastructure environment. eg. dev, prod, etc"
-  default     = "dev"
+  default     = "prod"
 }
 
 variable "phone_number" {
@@ -58,8 +58,8 @@ variable "us-east-1-azs" {
 }
 variable "ip" {
   type = map(string)
-default = {
-prod = "10.0.150.0/24"
-dev = "10.0.250.0/24"
-}
+  default = {
+    prod = "10.0.150.0/24"
+    dev  = "10.0.250.0/24"
+  }
 }
