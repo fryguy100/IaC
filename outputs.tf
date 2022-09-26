@@ -30,6 +30,6 @@ output "s3_bucket_name" {
 }
 
 output "phone_number" {
-value = var.phone_number
-sensitive = true
+  value     = var.phone_number
+  sensitive = true
 }
