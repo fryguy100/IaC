@@ -63,9 +63,13 @@ resource "aws_subnet" "public_subnets" {
 }
 
 resource "aws_subnet" "list_subnet" {
+  for_each          = var.ip
   vpc_id            = aws_vpc.vpc.id
-  cidr_block        = var.ip[var.environment]
+  cidr_block        = each.value
   availability_zone = var.us-east-1-azs[0]
+  tags = {
+    "Name" = each.key + "subnet"
+  }
 }
 
 #Create route tables for public and private subnets
