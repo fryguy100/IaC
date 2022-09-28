@@ -13,6 +13,10 @@ provider "aws" {
 data "aws_availability_zones" "available" {}
 data "aws_region" "current" {}
 
+data "aws_s3_bucket" "state_bucket" {
+  bucket = "ebt-terraform-bucket-state"
+}
+
 locals {
   team        = "api_mgmt_dev"
   application = "corp_api"
@@ -63,10 +67,10 @@ resource "aws_subnet" "public_subnets" {
 }
 
 resource "aws_subnet" "list_subnet" {
-  for_each          = var.ip
+  for_each          = var.env
   vpc_id            = aws_vpc.vpc.id
-  cidr_block        = each.value
-  availability_zone = var.us-east-1-azs[0]
+  cidr_block        = each.value.ip
+  availability_zone = each.value.az
   tags = {
     Name = "${each.key} subnet"
   }
@@ -151,6 +155,24 @@ data "aws_ami" "ubuntu" {
     values = ["hvm"]
   }
   owners = ["099720109477"]
+}
+
+resource "aws_iam_policy" "policy" {
+  name        = "state_bucket_policy"
+  description = "Deny access to my bucket"
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "s3:Get*",
+          "s3:List*"
+        ],
+        "Resource" : "${data.aws_s3_bucket.state_bucket.arn}"
+      }
+    ]
+  })
 }
 
 resource "aws_s3_bucket" "my-new-S3-bucket" {
