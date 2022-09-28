@@ -29,15 +29,19 @@ locals {
   createdby    = "terraform"
 }
 
+locals {
+  maximum = max(var.num_1, var.num_2, var.num_3)
+  minimum = min(var.num_1, var.num_2, var.num_3, 44, 20)
+}
 
 #Define the VPC
 resource "aws_vpc" "vpc" {
   cidr_block = var.vpc_cidr
   tags = {
-    Name        = var.vpc_name
-    Environment = var.environment
-    Terraform   = "true"
-    region      = data.aws_region.current.name
+    Name        = upper(var.vpc_name)
+    Environment = upper(var.environment)
+    Terraform   = upper("true")
+    region      = upper(data.aws_region.current.name)
   }
 }
 
