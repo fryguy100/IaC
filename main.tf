@@ -34,6 +34,7 @@ locals {
   minimum = min(var.num_1, var.num_2, var.num_3, 44, 20)
 }
 
+
 #Define the VPC
 resource "aws_vpc" "vpc" {
   cidr_block = var.vpc_cidr
@@ -192,23 +193,6 @@ resource "aws_s3_bucket_acl" "my-bucket-acl" {
   acl    = "private"
 }
 
-resource "aws_security_group" "my-new-security-group" {
-  name        = "web_server_inbound"
-  description = "Allow inbound traffic on tcp/443"
-  vpc_id      = aws_vpc.vpc.id
-  ingress {
-    description = "Allow 443 from the Internet"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name    = "web_server_inbound"
-    Purpose = "Intro to Resource Blocks Lab"
-  }
-}
-
 resource "random_string" "random-bucket" {
   length  = 4
   lower   = true
@@ -236,45 +220,11 @@ resource "aws_key_pair" "generated" {
 
 # Security Groups
 
-# Create Security Group - allow ssh traffic to intances
-resource "aws_security_group" "ingress-ssh" {
-  name   = "allow-all-ssh"
-  vpc_id = aws_vpc.vpc.id
-  ingress {
-    cidr_blocks = [
-      "0.0.0.0/0"
-    ]
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
-  }
-  // Terraform removes the default rule
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
 # Create Security Group - Web Traffic
-resource "aws_security_group" "vpc-web" {
+resource "aws_security_group" "web_egress" {
   name        = "vpc-web-${terraform.workspace}"
   vpc_id      = aws_vpc.vpc.id
-  description = "Web Traffic"
-  ingress {
-    description = "Allow Port 80"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    description = "Allow Port 443"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  description = "Web Outbound Traffic"
   egress {
     description = "Allow all ip and ports outbound"
     from_port   = 0
@@ -302,6 +252,23 @@ resource "aws_security_group" "vpc-ping" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+resource "aws_security_group" "main" {
+  name   = "core-sg"
+  vpc_id = aws_vpc.vpc.id
+
+  dynamic "ingress" {
+    for_each = var.web_ingress
+    content {
+      description = ingress.value.description
+      from_port   = ingress.value.port
+      to_port     = ingress.value.port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_block
+    }
+  }
+}
+
+
 
 # module that creates a keypair from the hashicorp registry
 module "keypair" {
@@ -331,7 +298,7 @@ module "server" {
   source                 = "./modules/server"
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_1"].id
-  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.ingress-ssh.id, aws_security_group.vpc-web.id]
+  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.main.id, aws_security_group.web_egress.id]
   identity               = "automation web app"
   key_name               = module.keypair.key_name
   private_key            = module.keypair.private_key_pem
@@ -341,7 +308,7 @@ module "server_web_server" {
   source                 = "./modules/web_server"
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_2"].id
-  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.ingress-ssh.id, aws_security_group.vpc-web.id]
+  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.main.id, aws_security_group.web_egress.id]
   identity               = "front-end web server"
   user                   = "ubuntu"
   key_name               = aws_key_pair.generated.key_name
