@@ -253,7 +253,7 @@ resource "aws_security_group" "vpc-ping" {
   }
 }
 resource "aws_security_group" "main" {
-  name   = "core-sg"
+  name   = "core-sg-global"
   vpc_id = aws_vpc.vpc.id
 
   dynamic "ingress" {
@@ -265,6 +265,9 @@ resource "aws_security_group" "main" {
       protocol    = ingress.value.protocol
       cidr_blocks = ingress.value.cidr_blocks
     }
+  }
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
