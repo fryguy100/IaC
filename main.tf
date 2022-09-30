@@ -163,7 +163,7 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_iam_policy" "policy" {
-  name        = "state_bucket_policy"
+  name        = "${var.environment}_state_bucket_policy"
   description = "Deny access to my bucket"
   policy = jsonencode({
     "Version" : "2012-10-17",
@@ -211,11 +211,8 @@ resource "local_file" "private_key_pem" {
 }
 #associate it with instance
 resource "aws_key_pair" "generated" {
-  key_name   = "MyAWSKey${var.environment}"
+  key_name   = "MyAWSKey_${var.environment}"
   public_key = tls_private_key.generated.public_key_openssh
-  lifecycle {
-    ignore_changes = [key_name]
-  }
 }
 
 # Security Groups
