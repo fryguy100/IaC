@@ -3,7 +3,7 @@ provider "aws" {
   region = "us-east-1"
   default_tags {
     tags = {
-      Environment = terraform.workspace
+      Environment = lower(terraform.workspace)
       Owner       = "Ghost Dog"
     }
   }
@@ -12,6 +12,10 @@ provider "aws" {
 #Retrieve the list of AZs in the current AWS region
 data "aws_availability_zones" "available" {}
 data "aws_region" "current" {}
+
+data "aws_s3_bucket" "state_bucket" {
+  bucket = "ebt-terraform-bucket-state"
+}
 
 locals {
   team        = "api_mgmt_dev"
@@ -25,15 +29,20 @@ locals {
   createdby    = "terraform"
 }
 
+locals {
+  maximum = max(var.num_1, var.num_2, var.num_3)
+  minimum = min(var.num_1, var.num_2, var.num_3, 44, 20)
+}
+
 
 #Define the VPC
 resource "aws_vpc" "vpc" {
   cidr_block = var.vpc_cidr
   tags = {
-    Name        = var.vpc_name
-    Environment = var.environment
-    Terraform   = "true"
-    region      = data.aws_region.current.name
+    Name        = upper(var.vpc_name)
+    Environment = upper(var.environment)
+    Terraform   = upper("true")
+    region      = upper(data.aws_region.current.name)
   }
 }
 
@@ -62,6 +71,15 @@ resource "aws_subnet" "public_subnets" {
   }
 }
 
+resource "aws_subnet" "list_subnet" {
+  for_each          = var.env
+  vpc_id            = aws_vpc.vpc.id
+  cidr_block        = each.value.ip
+  availability_zone = each.value.az
+  tags = {
+    Name = "${each.key} subnet"
+  }
+}
 
 #Create route tables for public and private subnets
 resource "aws_route_table" "public_route_table" {
@@ -144,6 +162,24 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"]
 }
 
+resource "aws_iam_policy" "policy" {
+  name        = "state_bucket_policy"
+  description = "Deny access to my bucket"
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "s3:Get*",
+          "s3:List*"
+        ],
+        "Resource" : "${data.aws_s3_bucket.state_bucket.arn}"
+      }
+    ]
+  })
+}
+
 resource "aws_s3_bucket" "my-new-S3-bucket" {
   bucket = "my-new-poop-bucket-${random_string.random-bucket.id}"
   tags = {
@@ -155,23 +191,6 @@ resource "aws_s3_bucket" "my-new-S3-bucket" {
 resource "aws_s3_bucket_acl" "my-bucket-acl" {
   bucket = aws_s3_bucket.my-new-S3-bucket.id
   acl    = "private"
-}
-
-resource "aws_security_group" "my-new-security-group" {
-  name        = "web_server_inbound"
-  description = "Allow inbound traffic on tcp/443"
-  vpc_id      = aws_vpc.vpc.id
-  ingress {
-    description = "Allow 443 from the Internet"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name    = "web_server_inbound"
-    Purpose = "Intro to Resource Blocks Lab"
-  }
 }
 
 resource "random_string" "random-bucket" {
@@ -201,45 +220,11 @@ resource "aws_key_pair" "generated" {
 
 # Security Groups
 
-# Create Security Group - allow ssh traffic to intances
-resource "aws_security_group" "ingress-ssh" {
-  name   = "allow-all-ssh"
-  vpc_id = aws_vpc.vpc.id
-  ingress {
-    cidr_blocks = [
-      "0.0.0.0/0"
-    ]
-    from_port = 22
-    to_port   = 22
-    protocol  = "tcp"
-  }
-  // Terraform removes the default rule
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
 # Create Security Group - Web Traffic
-resource "aws_security_group" "vpc-web" {
+resource "aws_security_group" "web_egress" {
   name        = "vpc-web-${terraform.workspace}"
   vpc_id      = aws_vpc.vpc.id
-  description = "Web Traffic"
-  ingress {
-    description = "Allow Port 80"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    description = "Allow Port 443"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  description = "Web Outbound Traffic"
   egress {
     description = "Allow all ip and ports outbound"
     from_port   = 0
@@ -267,6 +252,26 @@ resource "aws_security_group" "vpc-ping" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+resource "aws_security_group" "main" {
+  name   = "core-sg-global"
+  vpc_id = aws_vpc.vpc.id
+
+  dynamic "ingress" {
+    for_each = var.web_ingress
+    content {
+      description = ingress.value.description
+      from_port   = ingress.value.port
+      to_port     = ingress.value.port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_blocks
+    }
+  }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+
 
 # module that creates a keypair from the hashicorp registry
 module "keypair" {
@@ -296,7 +301,7 @@ module "server" {
   source                 = "./modules/server"
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_1"].id
-  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.ingress-ssh.id, aws_security_group.vpc-web.id]
+  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.main.id, aws_security_group.web_egress.id]
   identity               = "automation web app"
   key_name               = module.keypair.key_name
   private_key            = module.keypair.private_key_pem
@@ -306,7 +311,7 @@ module "server_web_server" {
   source                 = "./modules/web_server"
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_2"].id
-  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.ingress-ssh.id, aws_security_group.vpc-web.id]
+  vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.main.id, aws_security_group.web_egress.id]
   identity               = "front-end web server"
   user                   = "ubuntu"
   key_name               = aws_key_pair.generated.key_name

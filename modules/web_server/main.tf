@@ -3,16 +3,16 @@ locals {
   service_name = "Web-App"
   app_team     = "Cloud Team"
   createdby    = "terraform"
-  application = "front end web server"
+  application  = "front end web server"
 }
 locals {
   # Common tags to be assigned to all resources
   common_tags = {
-    Name      = local.server_name
-    App       = local.application
-    Service   = local.service_name
-    AppTeam   = local.app_team
-    CreatedBy = local.createdby
+    Name      = lower(local.server_name)
+    App       = lower(local.application)
+    Service   = lower(local.service_name)
+    AppTeam   = lower(local.app_team)
+    CreatedBy = lower(local.createdby)
   }
 }
 
