@@ -268,6 +268,33 @@ resource "aws_security_group" "main" {
   }
 }
 
+#vpn set
+resource "aws_vpn_gateway" "ghost-gate" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name = "Ghost-Gate"
+  }
+}
+resource "aws_customer_gateway" "k-gate" {
+  bgp_asn    = 65000
+  ip_address = "68.74.206.63"
+  type       = "ipsec.1"
+
+  tags = {
+    "Name" = "Kansas-Gateway"
+  }
+}
+resource "aws_vpn_connection" "ghost-vpn" {
+  vpn_gateway_id          = aws_vpn_gateway.ghost-gate.id
+  customer_gateway_id     = aws_customer_gateway.k-gate.id
+  outside_ip_address_type = "PublicIpv4"
+  type                    = "ipsec.1"
+  static_routes_only      = true
+  local_ipv4_network_cidr = "192.168.25.0/24"
+  tunnel1_preshared_key   = "ghosttunnel123"
+  tunnel1_ike_versions = ["ikev1"]
+}
 
 
 # module that creates a keypair from the hashicorp registry
@@ -282,7 +309,7 @@ module "keypair" {
 module "autoscaling" {
   source = "github.com/terraform-aws-modules/terraform-aws-autoscaling"
   # Autoscaling group
-  name                = "myasg"
+  name                = "${var.environment}_asg"
   vpc_zone_identifier = [aws_subnet.private_subnets["private_subnet_1"].id, aws_subnet.private_subnets["private_subnet_2"].id, aws_subnet.private_subnets["private_subnet_3"].id]
   min_size            = 0
   max_size            = 1
@@ -299,7 +326,7 @@ module "server" {
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_1"].id
   vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.main.id, aws_security_group.web_egress.id]
-  identity               = "automation web app"
+  identity               = "${var.environment} automation web app"
   key_name               = module.keypair.key_name
   private_key            = module.keypair.private_key_pem
 }
@@ -309,7 +336,7 @@ module "server_web_server" {
   ami                    = data.aws_ami.ubuntu.id
   subnet_id              = aws_subnet.public_subnets["public_subnet_2"].id
   vpc_security_group_ids = [aws_security_group.vpc-ping.id, aws_security_group.main.id, aws_security_group.web_egress.id]
-  identity               = "front-end web server"
+  identity               = "{var.environment} front-end web server"
   user                   = "ubuntu"
   key_name               = aws_key_pair.generated.key_name
   private_key            = tls_private_key.generated.private_key_pem
