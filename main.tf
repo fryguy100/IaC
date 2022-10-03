@@ -89,6 +89,10 @@ resource "aws_route_table" "public_route_table" {
     gateway_id = aws_internet_gateway.internet_gateway.id
     #nat_gateway_id = aws_nat_gateway.nat_gateway.id
   }
+  route {
+    cidr_block = "192.168.25.0/24"
+    gateway_id = aws_vpn_gateway.ghost-gate.id
+  }
   tags = {
     Name      = "demo_public_rtb"
     Terraform = "true"
@@ -100,6 +104,10 @@ resource "aws_route_table" "private_route_table" {
     cidr_block = "0.0.0.0/0"
     # gateway_id = aws_internet_gateway.internet_gateway.id
     nat_gateway_id = aws_nat_gateway.nat_gateway.id
+  }
+  route {
+    cidr_block = "192.168.25.0/24"
+    gateway_id = aws_vpn_gateway.ghost-gate.id
   }
   tags = {
     Name      = "demo_private_rtb"
@@ -293,9 +301,12 @@ resource "aws_vpn_connection" "ghost-vpn" {
   static_routes_only      = true
   local_ipv4_network_cidr = "192.168.25.0/24"
   tunnel1_preshared_key   = "ghosttunnel123"
-  tunnel1_ike_versions = ["ikev1"]
+  tunnel1_ike_versions    = ["ikev1"]
 }
-
+resource "aws_vpn_connection_route" "ghost-routes" {
+  vpn_connection_id      = aws_vpn_connection.ghost-vpn.id
+  destination_cidr_block = "192.168.25.0/24"
+}
 
 # module that creates a keypair from the hashicorp registry
 module "keypair" {
